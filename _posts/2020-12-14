@@ -1,0 +1,67 @@
+---
+layout: post
+title: Unfinished CPU notes for Win10 x64
+tags: [hacking]
+---
+
+The other day the power was out so I decided to write up a little tutorial on CPUs and Windows 10. tl;dr they work just like you'd see in most systems. Here's the totally incomplete tutorial.
+
+## Windows 10 x64 and CPUs
+
+x64 sports spiffy new names for its registers. If you're not familiar with registers, you can think of them as variables that are held by 
+the CPU. They have mostly nonsensical names like the following:
+
+![cpus](cpus.png)
+
+Last I checked, and it's been a while, most tutorials on stuff like buffer overflows were written specifically with the x86 architecture in mind
+and updated to provide a note that "the concept is easily extended to x64". I get that now, and the exension really is pretty simple, but I say that
+as a much ~~older~~ more experienced hacker. I'm not going to go through the whole thing as I'm sure someone else has, but I'd like to talk
+a little bit about stuff like calling conventions in the x64 CPU vs x86 and more. Generally just a discussion on how CPUs work and in particular
+how Windows 10 handles CPU work. Note that in all architectures registers exist, they're a fact of life and an incredibly important part of all
+computing. 
+
+First of all it should be mentioned that even with an x64 process 32-bit programs can be run. This is a function of a few things, but one in
+particular is that when a program tries to shove data into an x86 register on an x64 machine it's fine. That happens for a couple of reasons.
+The first is that, for example, if a piece of assembly code does something and stores to eax, the rax register still knows about it. That's
+because, very simply, the eax register is just the lower 32 bits of the larger rax register. The other thing that happens is that any writes to
+rax are automatically 0-extended meaning if you shove in 0x01234567 into rax you're actually shoving in 0x0000000001234567, a quad word.
+Not sure what the distinction is? Let's consider that rax is currently set to 0x111111112839cdef, that means that an operation that moves into
+eax with 0x01234567 like `mov eax, 0x01234567` will set the entirety of rax to 0x0000000001234567, in other words it clears the upper 32 bits.
+Such is not the case for any subregisters of rax, like the lower 16 bits of rax (called ax) or the lower 8 bits (called just x) just kidding that
+would make way too much fucking sense - it's called al for some fucking reason. Let's say we have an assembly operation of `mov al,0x01234567`
+and rax is currently set to 0x1111111100000000 that means that rax would end up as 0x1111111101234567. In other words it is NOT 0-extended. A 
+fairly natural quetion is "but daddy, why not? I want ax to be zero extended for Christmas". Well fuck you Tiny Tim, it's just not. This is part
+of the x86 standard, so literally they're just making this shit up as they go along. Anyway, hopefully that was informative while also being plenty
+offensive.
+
+Normally only integers can be stored in registers, but in 64-bit world we have a few floating point precision registers:
+
+    Eight 80-bit x87 registers.
+
+    Eight 64-bit MMX registers. (These overlap with the x87 registers.)
+
+    The original set of eight 128-bit SSE registers is increased to sixteen.
+
+Unlike x86, things are slightly simpler in 64-bit land. In order to make function calls, instead of arguments being stored on the stack
+immediately. Here are the rules:
+
+    The first four integer or pointer parameters are passed in the rcx, rdx, r8, and r9 registers.
+
+    The first four floating-point parameters are passed in the first four SSE registers, xmm0-xmm3.
+
+    The caller reserves space on the stack for arguments passed in registers. The called function can use this space to spill the contents of registers to the stack.
+
+    Any additional arguments are passed on the stack.
+
+    An integer or pointer return value is returned in the rax register, while a floating-point return value is returned in xmm0.
+
+    rax, rcx, rdx, r8-r11 are volatile.
+
+    rbx, rbp, rdi, rsi, r12-r15 are nonvolatile.
+
+Usually arguments are pointers to shit (ints), and rarely ever floats so it almost always amounts to rcx, rdx, r8, and r9 receiving the arguments, with the rest 
+being stored on the stack. But do keep in mind that if they are floats they'll be held in xmm0-xmm3.
+
+
+
+
