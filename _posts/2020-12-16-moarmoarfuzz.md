@@ -144,6 +144,37 @@ INFO: A corpus is not provided, starting from an empty corpus
 #262144 pulse  cov: 2 ft: 2 corp: 1/1b lim: 2611 exec/s: 5957 rss: 196Mb
 #524288 pulse  cov: 2 ft: 2 corp: 1/1b lim: 4096 exec/s: 6096 rss: 468Mb
 ```
-Pretty good exec speed so far, let's keep at it. 
+Pretty good exec speed so far, let's keep it going. Now I'm kinda curious to run this under WinAFL. It seems all I'd need to do is grab....fuck wait. OK look at my code again, shame on you for not noticing. Do you see anything? Well, as it turns out I forgot to do anything with Data (the variable libFuzzer constantly mutates), so all I was doing was parsing C:\DDDDDDDDDDDDDDDD\ a fuckton of times. That's useless. However I want to somewhat preserve what I'm doing, have a C:\ to start out, and some normal letters after. So I came up with this code:
+
+```
+#include <shlobj.h>
+#include <shlobj_core.h>
+#include <shlwapi.h>
+#include <iostream>
+#include <objbase.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int fuzzMeDrZaus(LPCWSTR path, const uint8_t *Data, size_t size)
+{
+    //LPITEMIDLIST *itemlist;
+    ITEMIDLIST *itemlist;
+    int dataSize = sizeof(Data);
+    memcpy(path+0x7, Data, size);
+    SHParseDisplayName(path, NULL, &itemlist, NULL, NULL);
+    SHGetFolderLocation(0, NULL, 0, 0, &itemlist);
+    return 0;
+};
+
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) 
+{
+  LPCWSTR _str = L"C:\\DDDDDDDDDDDDDDDDDDDDDDD\\";
+  fuzzMeDrZaus(_str, Data, Size);
+  return 0;
+};
+```
+
+What's that do? Notice the memcpy, that's saying write to an address at 7 bytes into the string using the data provided via the Data variable. The write will be of a size size, which is the variable that holds the size of libFuzzer's data. Let's try that now. I'm out for the night though, picking back up in next post.
 
 
