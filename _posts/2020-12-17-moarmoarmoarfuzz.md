@@ -187,7 +187,355 @@ echo 1 | ASAN_OPTIONS=detect_leaks=0 ./afl-showmap -m none -q -o .test-instr1 ./
 [+] All done! Be sure to review the README.md - it's pretty short and useful.
 ```
 
-Aaaand it's done.
+Aaaand it's done. Let's get this fuzzer going and I'll keep hunting in the Shell32 API. BUT FIRST
+
+## Now for something completely different
+
+Variety is the spice of life and I've been hunting in the shell32 API fruitfully for a while. But I'm starting to get pretty in-depth into it. I've found that both a deep understanding of it as well as fuzzing and RE have been the key. But are there other ways to hunt? Yep, there are! And it never hurts to kick off a simple fuzzer and depend on blind luck as opposed to a deep understanding to find some 0-days. So let's see what that looks like, this time I'm on Ubuntu x64 and I'm going to hunt in libexpat. libexpat is an XML library that's used fucking everywhere (looks it up, it's true, it's even in the BSD kernel). Even a DoS could lead to some interesting weaponizations, so let's see how we can quickly kick off a fuzzer and continue with our shell32 API hunt. 
+
+OK so let's say we're in a time crunch and we don't really want to understand what's going on, but still want to fuzz something. This is my favorite dumbass trick. Clone the libexpat repo: https://github.com/libexpat/libexpat, grab AFL++ https://github.com/AFLplusplus/AFLplusplus and compile it. On Ubuntu all I had to do was install build-essential and clang (the latter is likely unnecessary) as well as autoconf for libexpat. Once all is done, AFL++ will look like this:
+
+```
+punk@punkserv ~/T/AFLplusplus (stable)> ls
+afl-analyze*  afl-clang-fast@       afl-gcc@            afl-wine-trace*   dictionaries/           instrumentation/     testcases/
+afl-as*       afl-clang-fast++@     afl-gotcpu*         Android.bp        Dockerfile              LICENSE              test-instr.c
+afl-c++@      afl-cmin*             afl-llvm-rt-64.o@   Android.mk@       docs/                   Makefile             TODO.md
+afl-c++.8@    afl-cmin.bash*        afl-plot*           as@               dynamic_list.txt        qemu_mode/           types.h@
+afl-cc*       afl-compiler-rt-64.o  afl-showmap*        Changelog.md@     GNUmakefile             QuickStartGuide.md@  unicorn_mode/
+afl-cc.8      afl-compiler-rt.o     afl-system-config*  config.h@         GNUmakefile.gcc_plugin  README.md            utils/
+afl-clang@    afl-fuzz*             afl-tmin*           CONTRIBUTING.md   GNUmakefile.llvm        src/
+afl-clang++@  afl-g++@              afl-whatsup*        custom_mutators/  include/                test/
+punk@punkserv ~/T/AFLplusplus (stable)> 
+```
+
+Most importantly here, we'll be using afl-clang and afl-clang++. Make note of where they're at. Build libexpat with the AFL versions of shit, clang is best, so something like this:
+
+```
+$ CC=/home/punk/Tools/AFLplusplus/afl-clang CXX=/home/punk/Tools/AFLplusplus/afl-clang++ ./buildconf.sh
+$ CC=/home/punk/Tools/AFLplusplus/afl-clang CXX=/home/punk/Tools/AFLplusplus/afl-clang++ ./configure
+$ CC=/home/punk/Tools/AFLplusplus/afl-clang CXX=/home/punk/Tools/AFLplusplus/afl-clang++ make
+```
+
+Then pop yourself on over to the `examples/` dir, like this:
+
+```
+/* This is simple demonstration of how to use expat. This program
+   reads an XML document from standard input and writes a line with
+   the name of each element to standard output indenting child
+   elements by one tab stop more than their parent element.
+   It must be used with Expat compiled for UTF-8 output.
+                            __  __            _
+                         ___\ \/ /_ __   __ _| |_
+                        / _ \\  /| '_ \ / _` | __|
+                       |  __//  \| |_) | (_| | |_
+                        \___/_/\_\ .__/ \__,_|\__|
+                                 |_| XML parser
+
+   Copyright (c) 1997-2000 Thai Open Source Software Center Ltd
+   Copyright (c) 2000-2017 Expat development team
+   Licensed under the MIT license:
+
+   Permission is  hereby granted,  free of charge,  to any  person obtaining
+   a  copy  of  this  software   and  associated  documentation  files  (the
+   "Software"),  to  deal in  the  Software  without restriction,  including
+   without  limitation the  rights  to use,  copy,  modify, merge,  publish,
+   distribute, sublicense, and/or sell copies of the Software, and to permit
+   persons  to whom  the Software  is  furnished to  do so,  subject to  the
+   following conditions:
+
+   The above copyright  notice and this permission notice  shall be included
+   in all copies or substantial portions of the Software.
+
+   THE  SOFTWARE  IS  PROVIDED  "AS  IS",  WITHOUT  WARRANTY  OF  ANY  KIND,
+   EXPRESS  OR IMPLIED,  INCLUDING  BUT  NOT LIMITED  TO  THE WARRANTIES  OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+   NO EVENT SHALL THE AUTHORS OR  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+   DAMAGES OR  OTHER LIABILITY, WHETHER  IN AN  ACTION OF CONTRACT,  TORT OR
+   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+   USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+#include <stdio.h>
+#include <expat.h>
+
+#ifdef XML_LARGE_SIZE
+#  define XML_FMT_INT_MOD "ll"
+#else
+#  define XML_FMT_INT_MOD "l"
+#endif
+
+#ifdef XML_UNICODE_WCHAR_T
+#  include <wchar.h>
+#  define XML_FMT_STR "ls"
+#else
+#  define XML_FMT_STR "s"
+#endif
+
+static void XMLCALL
+startElement(void *userData, const XML_Char *name, const XML_Char **atts) {
+  int i;
+  int *depthPtr = (int *)userData;
+  (void)atts;
+
+  for (i = 0; i < *depthPtr; i++)
+    putchar('\t');
+  printf("%" XML_FMT_STR "\n", name);
+  *depthPtr += 1;
+}
+
+static void XMLCALL
+endElement(void *userData, const XML_Char *name) {
+  int *depthPtr = (int *)userData;
+  (void)name;
+
+  *depthPtr -= 1;
+}
+
+int
+main(int argc, char *argv[]) {
+  char buf[BUFSIZ];
+  XML_Parser parser = XML_ParserCreate(NULL);
+  int done;
+  int depth = 0;
+  (void)argc;
+  (void)argv;
+
+  XML_SetUserData(parser, &depth);
+  XML_SetElementHandler(parser, startElement, endElement);
+  do {
+    size_t len = fread(buf, 1, sizeof(buf), stdin);
+    done = len < sizeof(buf);
+    if (XML_Parse(parser, buf, (int)len, done) == XML_STATUS_ERROR) {
+      fprintf(stderr, "%" XML_FMT_STR " at line %" XML_FMT_INT_MOD "u\n",
+              XML_ErrorString(XML_GetErrorCode(parser)),
+              XML_GetCurrentLineNumber(parser));
+      XML_ParserFree(parser);
+      return 1;
+    }
+  } while (! done);
+  XML_ParserFree(parser);
+  return 0;
+}
+```
+
+ah-ha, we have found an example program that uses some relevant APIs. Wouldn't it be nice to use this as a harness?? Sure, but it's got some problems. First of all see all those mentions to stdin? Well, fuck that, AFL requires you take in a file. So let's hack this apart and make it accept a file at gunpoint:
+
+```
+punk@punkserv ~/0/l/e/examples (master)> cat elements.c 
+/* This is simple demonstration of how to use expat. This program
+   reads an XML document from standard input and writes a line with
+   the name of each element to standard output indenting child
+   elements by one tab stop more than their parent element.
+   It must be used with Expat compiled for UTF-8 output.
+                            __  __            _
+                         ___\ \/ /_ __   __ _| |_
+                        / _ \\  /| '_ \ / _` | __|
+                       |  __//  \| |_) | (_| | |_
+                        \___/_/\_\ .__/ \__,_|\__|
+                                 |_| XML parser
+
+   Copyright (c) 1997-2000 Thai Open Source Software Center Ltd
+   Copyright (c) 2000-2017 Expat development team
+   Licensed under the MIT license:
+
+   Permission is  hereby granted,  free of charge,  to any  person obtaining
+   a  copy  of  this  software   and  associated  documentation  files  (the
+   "Software"),  to  deal in  the  Software  without restriction,  including
+   without  limitation the  rights  to use,  copy,  modify, merge,  publish,
+   distribute, sublicense, and/or sell copies of the Software, and to permit
+   persons  to whom  the Software  is  furnished to  do so,  subject to  the
+   following conditions:
+
+   The above copyright  notice and this permission notice  shall be included
+   in all copies or substantial portions of the Software.
+
+   THE  SOFTWARE  IS  PROVIDED  "AS  IS",  WITHOUT  WARRANTY  OF  ANY  KIND,
+   EXPRESS  OR IMPLIED,  INCLUDING  BUT  NOT LIMITED  TO  THE WARRANTIES  OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+   NO EVENT SHALL THE AUTHORS OR  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+   DAMAGES OR  OTHER LIABILITY, WHETHER  IN AN  ACTION OF CONTRACT,  TORT OR
+   OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+   USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+#include <stdio.h>
+#include <expat.h>
+
+#ifdef XML_LARGE_SIZE
+#  define XML_FMT_INT_MOD "ll"
+#else
+#  define XML_FMT_INT_MOD "l"
+#endif
+
+#ifdef XML_UNICODE_WCHAR_T
+#  include <wchar.h>
+#  define XML_FMT_STR "ls"
+#else
+#  define XML_FMT_STR "s"
+#endif
+
+static void XMLCALL
+startElement(void *userData, const XML_Char *name, const XML_Char **atts) {
+  int i;
+  int *depthPtr = (int *)userData;
+  (void)atts;
+
+  for (i = 0; i < *depthPtr; i++)
+    putchar('\t');
+  printf("%" XML_FMT_STR "\n", name);
+  *depthPtr += 1;
+}
+
+static void XMLCALL
+endElement(void *userData, const XML_Char *name) {
+  int *depthPtr = (int *)userData;
+  (void)name;
+
+  *depthPtr -= 1;
+}
+
+int
+main(int argc, char *argv[]) {
+
+  FILE *fp;
+  size_t sz;
+  fp = fopen (argv[1], "r");
+  fseek(fp, 0L, SEEK_END);
+  sz = ftell(fp);
+  fseek(fp, 0L, SEEK_END);
+  rewind(fp);
+  char buf[sz];
+  XML_Parser parser = XML_ParserCreate(NULL);
+  int done;
+  int depth = 0;
+  //(void)argc;
+  //(void)argv;
+
+  XML_SetUserData(parser, &depth);
+  XML_SetElementHandler(parser, startElement, endElement);
+  do {
+    size_t len = fread(buf, 1, sizeof(buf), fp);
+    done = len < sizeof(buf);
+    if (XML_Parse(parser, buf, (int)len, done) == XML_STATUS_ERROR) {
+      fprintf(stderr, "%" XML_FMT_STR " at line %" XML_FMT_INT_MOD "u\n",
+              XML_ErrorString(XML_GetErrorCode(parser)),
+              XML_GetCurrentLineNumber(parser));
+      XML_ParserFree(parser);
+      return 1;
+    }
+  } while (! done);
+  XML_ParserFree(parser);
+  return 0;
+}
+```
+
+Boom, that should do it. Only a few lines changed there, specifically we're getting the filesize in bytes and allocating a buffer just big enough to hold it. That should be good. Now pay attention to the following because it's a very common pattern with programs that use `configure` and `make`. The `example/` dir has it's own makefile, nice, we don't have to recompile all of libexpat. So check it:
+
+```
+punk@punkserv ~/0/l/e/examples (master)> CC=/home/punk/Tools/AFLplusplus/afl-clang CXX=/home/punk/Tools/AFLplusplus/afl-clang++ make
+/home/punk/Tools/AFLplusplus/afl-clang -DHAVE_CONFIG_H -I. -I..  -DHAVE_EXPAT_CONFIG_H -DXML_ENABLE_VISIBILITY=1 -I./../lib  -Wall -Wextra -fexceptions -fno-strict-aliasing -Wmissing-prototypes -Wstrict-prototypes -pedantic -Wnull-dereference -Wdouble-promotion -Wshadow -Wformat=2 -Wmisleading-indentation -fvisibility=hidden -g -O2 -MT elements.o -MD -MP -MF .deps/elements.Tpo -c -o elements.o elements.c
+afl-cc ++3.00c by Michal Zalewski, Laszlo Szekeres, Marc Heuse - mode: GCC-DEFAULT
+elements.c:74:10: warning: unused parameter 'argc' [-Wunused-parameter]
+main(int argc, char *argv[]) {
+         ^
+1 warning generated.
+afl-as++3.00c by Michal Zalewski
+[+] Instrumented 7 locations (64-bit, non-hardened mode, ratio 100%).
+mv -f .deps/elements.Tpo .deps/elements.Po
+/bin/bash ../libtool  --tag=CC   --mode=link /home/punk/Tools/AFLplusplus/afl-clang -Wall -Wextra -fexceptions -fno-strict-aliasing -Wmissing-prototypes -Wstrict-prototypes -pedantic -Wnull-dereference -Wdouble-promotion -Wshadow -Wformat=2 -Wmisleading-indentation -fvisibility=hidden -g -O2 -fno-strict-aliasing  -o elements elements.o ../lib/libexpat.la 
+libtool: link: /home/punk/Tools/AFLplusplus/afl-clang -Wall -Wextra -fexceptions -fno-strict-aliasing -Wmissing-prototypes -Wstrict-prototypes -pedantic -Wnull-dereference -Wdouble-promotion -Wshadow -Wformat=2 -Wmisleading-indentation -fvisibility=hidden -g -O2 -fno-strict-aliasing -o .libs/elements elements.o  ../lib/.libs/libexpat.so
+afl-cc ++3.00c by Michal Zalewski, Laszlo Szekeres, Marc Heuse - mode: GCC-DEFAULT
+/home/punk/Tools/AFLplusplus/afl-clang -DHAVE_CONFIG_H -I. -I..  -DHAVE_EXPAT_CONFIG_H -DXML_ENABLE_VISIBILITY=1 -I./../lib  -Wall -Wextra -fexceptions -fno-strict-aliasing -Wmissing-prototypes -Wstrict-prototypes -pedantic -Wnull-dereference -Wdouble-promotion -Wshadow -Wformat=2 -Wmisleading-indentation -fvisibility=hidden -g -O2 -MT outline.o -MD -MP -MF .deps/outline.Tpo -c -o outline.o outline.c
+afl-cc ++3.00c by Michal Zalewski, Laszlo Szekeres, Marc Heuse - mode: GCC-DEFAULT
+afl-as++3.00c by Michal Zalewski
+[+] Instrumented 11 locations (64-bit, non-hardened mode, ratio 100%).
+mv -f .deps/outline.Tpo .deps/outline.Po
+/bin/bash ../libtool  --tag=CC   --mode=link /home/punk/Tools/AFLplusplus/afl-clang -Wall -Wextra -fexceptions -fno-strict-aliasing -Wmissing-prototypes -Wstrict-prototypes -pedantic -Wnull-dereference -Wdouble-promotion -Wshadow -Wformat=2 -Wmisleading-indentation -fvisibility=hidden -g -O2 -fno-strict-aliasing  -o outline outline.o ../lib/libexpat.la 
+libtool: link: /home/punk/Tools/AFLplusplus/afl-clang -Wall -Wextra -fexceptions -fno-strict-aliasing -Wmissing-prototypes -Wstrict-prototypes -pedantic -Wnull-dereference -Wdouble-promotion -Wshadow -Wformat=2 -Wmisleading-indentation -fvisibility=hidden -g -O2 -fno-strict-aliasing -o .libs/outline outline.o  ../lib/.libs/libexpat.so
+afl-cc ++3.00c by Michal Zalewski, Laszlo Szekeres, Marc Heuse - mode: GCC-DEFAULT
+punk@punkserv ~/0/l/e/examples (master)> ls
+elements*  elements.c  elements.o  Makefile  Makefile.am  Makefile.in  outline*  outline.c  outline.o  sample.xml
+punk@punkserv ~/0/l/e/examples (master)> cd .libs/
+punk@punkserv ~/0/l/e/e/.libs (master)> ls
+elements*  outline*
+punk@punkserv ~/0/l/e/e/.libs (master)> mv ../sample.xml .
+punk@punkserv ~/0/l/e/e/.libs (master)> ls
+elements*  outline*  sample.xml
+punk@punkserv ~/0/l/e/e/.libs (master)> ./elements sample.xml 
+letter
+	title
+	salutation
+	text
+		emphasis
+		component
+		component
+	title
+	text
+	greetings
+	signature
+	address
+	address
+	weblink
+	logo
+```
+
+Alright, so we have this working, it's parsing the XML file and returning the relevant info. 
+
+Let's also build a small corpus of XML files. The rule of thumb for AFL++: small, separate files, each with different attributes/things to parse. I'm not being careful here because I just want to get a fuzz running, but that looks something like this:
+
+```
+punk@punkserv ~/0/l/e/e/.libs (master)> mv ../elements *.xml CORPUS/
+fish: No matches for wildcard “*.xml”. See `help expand`.
+mv ../elements *.xml CORPUS/
+               ^
+punk@punkserv ~/0/l/e/e/.libs (master) [124]> mv ../*.xml CORPUS/
+punk@punkserv ~/0/l/e/e/.libs (master)> ls CORPUS/
+cd_catalog.xml  plant_catalog.xml  simple2.xml  simple.xml
+punk@punkserv ~/0/l/e/e/.libs (master)> ls
+CORPUS/  elements*  outline*
+punk@punkserv ~/0/l/e/e/.libs (master)> ls CORPUS/
+cd_catalog.xml  plant_catalog.xml  simple2.xml  simple.xml
+punk@punkserv ~/0/l/e/e/.libs (master)> ls
+CORPUS/  elements*  outline*
+punk@punkserv ~/0/l/e/e/.libs (master)> ./elements CORPUS/cd_catalog.xml 
+punk@punkserv ~/0/l/e/e/.libs (master)>  
+```
+
+Now notice the following lines and I'll describe wtf is going on:
+
+```
+punk@punkserv ~/0/l/e/e/.libs (master)> pwd
+/home/punk/0daze/libexpat/expat/examples/.libs
+punk@punkserv ~/0/l/e/e/.libs (master)> ls ../
+elements*  elements.c  elements.o  Makefile  Makefile.am  Makefile.in  outline*  outline.c  outline.o
+```
+
+OK the example programs are located in `/home/punk/0daze/libexpat/expat/examples/.libs`, in other words in a hidden folder in `examples/`. This is a common point of confusion as if you look one folder back, an executable `elements` file also exists. This file is a SHELL SCRIPT, and not the actual compiled C program. If you pass a shell script to AFL it will yell at you and make you feel small. This is a very common pattern so worth noting: with build systems like this, make sure you're always using the compiled file. Anyway, with that in mind you'll also notice that I ran `./elements cd_catalog.xml` and didn't get any funky errors OR output. I've successfully taken out the part where it writes to stdout, saving me precious cycles. Now let's prep to run AFL:
+
+```
+root@punkserv:/home/punk/0daze/libexpat/expat/examples/.libs#     echo core >/proc/sys/kernel/core_pattern
+```
+
+and check out my dir:
+
+```
+punk@punkserv:~/0daze/libexpat/expat/examples/.libs$ ls
+CORPUS  elements  OUT  outline
+punk@punkserv:~/0daze/libexpat/expat/examples/.libs$ mv /home/punk/Downloads/*.xml CORPUS/
+punk@punkserv:~/0daze/libexpat/expat/examples/.libs$ cd CORPUS/
+punk@punkserv:~/0daze/libexpat/expat/examples/.libs/CORPUS$ ls
+Sample-employee-XML-file.xml  sample.xml  Sample-XML-Files.xml  Sample-XML-With-Multiple-Records.xml  Simple-XML-file-for-student-details.xml
+punk@punkserv:~/0daze/libexpat/expat/examples/.libs/CORPUS$ cd ..
+punk@punkserv:~/0daze/libexpat/expat/examples/.libs$ ls
+CORPUS  elements  OUT  outline
+punk@punkserv:~/0daze/libexpat/expat/examples/.libs$ /home/punk/Tools/AFLplusplus/afl-fuzz -i CORPUS/ -o OUT -- ./elements @@
+```
+
+Press enter and:
+
+![/assets/img/afl-run.PNG](/assets/img/afl-run.PNG)
+
+
 
 
 
