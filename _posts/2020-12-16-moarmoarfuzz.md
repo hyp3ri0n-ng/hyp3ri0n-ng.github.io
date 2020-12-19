@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Moar Fuzz!!!
+title: MoarMoar Fuzz!!!
 tags: [hacking]
 ---
 
