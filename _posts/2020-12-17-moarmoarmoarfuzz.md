@@ -216,7 +216,7 @@ $ CC=/home/punk/Tools/AFLplusplus/afl-clang CXX=/home/punk/Tools/AFLplusplus/afl
 $ CC=/home/punk/Tools/AFLplusplus/afl-clang CXX=/home/punk/Tools/AFLplusplus/afl-clang++ make
 ```
 
-Then pop yourself on over to the `examples/` dir, like this:
+Then pop yourself on over to the `examples/` dir, and check out elements.c, look at like this:
 
 ```
 /* This is simple demonstration of how to use expat. This program
@@ -402,7 +402,6 @@ main(int argc, char *argv[]) {
   fp = fopen (argv[1], "r");
   fseek(fp, 0L, SEEK_END);
   sz = ftell(fp);
-  fseek(fp, 0L, SEEK_END);
   rewind(fp);
   char buf[sz];
   XML_Parser parser = XML_ParserCreate(NULL);
