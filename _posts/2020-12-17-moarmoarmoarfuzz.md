@@ -1,4 +1,3 @@
-
 ---
 layout: post
 title: Moar Fuzz 3 - Electric Tree!!!
@@ -126,7 +125,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 */
 ```
 
-In other words, a bunch of \'s crashes the ILCreateFromPath API call. Neat. Looks like.. a heap null deref? I dunno, gotta do more research. Anyway enjoy the 0-day!
+In other words, a bunch of \\'s crashes the ILCreateFromPath API call. Neat. Looks like.. a heap null deref? I dunno, gotta do more research. Anyway enjoy the 0-day!
 
 Anyway I kick this puppy off (wait why am I talking about kicking puppies???):
 
