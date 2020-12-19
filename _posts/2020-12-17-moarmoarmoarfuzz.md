@@ -127,3 +127,72 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 ```
 
 In other words, a bunch of \'s crashes the ILCreateFromPath API call. Neat. Looks like.. a heap null deref? I dunno, gotta do more research. Anyway enjoy the 0-day!
+
+Anyway I kick this puppy off (wait why am I talking about kicking puppies???):
+
+```
+#44650  REDUCE cov: 7 ft: 35 corp: 29/988b lim: 325 exec/s: 2126 rss: 44Mb L: 161/281 MS: 5 EraseBytes-ChangeBinInt-EraseBytes-InsertByte-CopyPart-
+#45986  REDUCE cov: 7 ft: 35 corp: 29/984b lim: 333 exec/s: 2189 rss: 44Mb L: 157/281 MS: 1 EraseBytes-
+#49814  REDUCE cov: 7 ft: 35 corp: 29/983b lim: 365 exec/s: 2264 rss: 44Mb L: 8/281 MS: 3 EraseBytes-EraseBytes-CopyPart-
+#50651  REDUCE cov: 7 ft: 35 corp: 29/969b lim: 373 exec/s: 2302 rss: 44Mb L: 267/267 MS: 2 CrossOver-CopyPart-
+#52125  REDUCE cov: 7 ft: 35 corp: 29/955b lim: 381 exec/s: 2266 rss: 44Mb L: 253/253 MS: 4 InsertByte-PersAutoDict-ChangeByte-EraseBytes- DE: "\x09\x00\x00\x00\x00\x00\x00\x00"-
+#52464  REDUCE cov: 7 ft: 35 corp: 29/946b lim: 381 exec/s: 2281 rss: 44Mb L: 148/253 MS: 4 ChangeBinInt-PersAutoDict-ShuffleBytes-EraseBytes- DE: "\x01\x0d"-
+#52525  REDUCE cov: 7 ft: 35 corp: 29/945b lim: 381 exec/s: 2283 rss: 44Mb L: 18/253 MS: 1 EraseBytes-
+#54402  REDUCE cov: 7 ft: 35 corp: 29/944b lim: 397 exec/s: 2365 rss: 44Mb L: 20/253 MS: 2 ShuffleBytes-EraseBytes-
+#54593  REDUCE cov: 7 ft: 35 corp: 29/942b lim: 397 exec/s: 2373 rss: 44Mb L: 251/251 MS: 1 EraseBytes-
+#55164  REDUCE cov: 7 ft: 35 corp: 29/941b lim: 397 exec/s: 2398 rss: 44Mb L: 51/251 MS: 1 EraseBytes-
+#55785  REDUCE cov: 7 ft: 35 corp: 29/940b lim: 397 exec/s: 2324 rss: 44Mb L: 19/251 MS: 1 EraseBytes-
+#58971  REDUCE cov: 7 ft: 35 corp: 29/939b lim: 421 exec/s: 2457 rss: 44Mb L: 33/251 MS: 1 EraseBytes-
+#59209  REDUCE cov: 7 ft: 35 corp: 29/934b lim: 421 exec/s: 2467 rss: 44Mb L: 246/246 MS: 3 ChangeBinInt-ChangeBit-EraseBytes-
+#65536  pulse  cov: 7 ft: 35 corp: 29/934b lim: 477 exec/s: 2520 rss: 44Mb
+#69806  REDUCE cov: 7 ft: 35 corp: 29/933b lim: 526 exec/s: 2585 rss: 44Mb L: 17/246 MS: 2 CopyPart-EraseBytes-
+#70222  REDUCE cov: 7 ft: 35 corp: 29/924b lim: 526 exec/s: 2600 rss: 44Mb L: 237/237 MS: 1 EraseBytes-
+#77271  REDUCE cov: 7 ft: 35 corp: 29/923b lim: 589 exec/s: 2664 rss: 44Mb L: 18/237 MS: 4 ShuffleBytes-ShuffleBytes-ShuffleBytes-EraseBytes-
+#77327  REDUCE cov: 7 ft: 35 corp: 29/922b lim: 589 exec/s: 2666 rss: 44Mb L: 50/237 MS: 1 EraseBytes-
+#78693  REDUCE cov: 7 ft: 35 corp: 29/916b lim: 598 exec/s: 2713 rss: 44Mb L: 231/231 MS: 1 CrossOver-
+#81500  REDUCE cov: 7 ft: 35 corp: 29/909b lim: 625 exec/s: 2716 rss: 44Mb L: 224/224 MS: 2 InsertByte-EraseBytes-
+#82012  REDUCE cov: 7 ft: 35 corp: 29/908b lim: 625 exec/s: 2733 rss: 44Mb L: 223/223 MS: 2 PersAutoDict-EraseBytes- DE: "\x01\x0d"-
+#92904  REDUCE cov: 7 ft: 35 corp: 29/904b lim: 733 exec/s: 2815 rss: 44Mb L: 219/219 MS: 2 ChangeBit-EraseBytes-
+#93906  REDUCE cov: 7 ft: 35 corp: 29/903b lim: 742 exec/s: 2845 rss: 44Mb L: 218/218 MS: 2 CopyPart-EraseBytes-
+#100687 REDUCE cov: 7 ft: 35 corp: 29/902b lim: 805 exec/s: 2876 rss: 44Mb L: 8/218 MS: 1 EraseBytes-
+#101880 REDUCE cov: 7 ft: 35 corp: 29/901b lim: 814 exec/s: 2910 rss: 44Mb L: 49/218 MS: 3 EraseBytes-EraseBytes-CopyPart-
+#102658 REDUCE cov: 7 ft: 35 corp: 29/900b lim: 814 exec/s: 2851 rss: 44Mb L: 48/218 MS: 3 ChangeBit-EraseBytes-CopyPart-
+#103319 REDUCE cov: 7 ft: 35 corp: 29/897b lim: 814 exec/s: 2869 rss: 44Mb L: 45/218 MS: 1 EraseBytes-
+#104417 REDUCE cov: 7 ft: 35 corp: 29/896b lim: 823 exec/s: 2900 rss: 44Mb L: 44/218 MS: 3 ShuffleBytes-ShuffleBytes-EraseBytes-
+#107483 REDUCE cov: 7 ft: 35 corp: 29/894b lim: 850 exec/s: 2904 rss: 44Mb L: 216/216 MS: 1 EraseBytes-
+#112952 REDUCE cov: 7 ft: 35 corp: 29/888b lim: 904 exec/s: 2972 rss: 44Mb L: 210/210 MS: 4 ShuffleBytes-InsertByte-EraseBytes-CopyPart-
+#120456 REDUCE cov: 7 ft: 35 corp: 29/887b lim: 976 exec/s: 3011 rss: 44Mb L: 43/210 MS: 4 ShuffleBytes-PersAutoDict-ShuffleBytes-EraseBytes- DE: "\x01\x0d"-
+#122067 REDUCE cov: 7 ft: 35 corp: 29/886b lim: 985 exec/s: 2977 rss: 44Mb L: 147/210 MS: 1 EraseBytes-
+#127516 REDUCE cov: 7 ft: 35 corp: 29/885b lim: 1030 exec/s: 3036 rss: 44Mb L: 16/210 MS: 4 CopyPart-EraseBytes-CrossOver-CopyPart-
+#131072 pulse  cov: 7 ft: 35 corp: 29/885b lim: 1060 exec/s: 3048 rss: 44Mb
+```
+
+Let's see if that gets us anywhere besides a crash in the same place. Remember I'm looking for a crash just a couple lines down. If this fails, what I'll do is likely this: take a valid structure created by ILCreateFromPath, add it to a bunch of corpus files, and then run `SHGetFolderLocation(0, 5, 0, 0, &pidlAbsolute);`. Remember the main reason we're doing all of this is to hit that function, why??? Because it runs whenever `explorer.exe <folder>` is run. It would be a fun 0-day to have a folder with a name that would own the OS wouldn't it!?!? Yes, yes it would. 
+
+Anyway, while that's running we should do some more hunting right?? Yes, so let's fuzz libexpat on Ubuntu Linux x64 using AFL++. I've done this before and I know that if I let it run for about a week, I get about 5 unique crashes, mostly null derefs. Because I've promised myself to do a 20 days of 0day this should be fairly useful. Let's see how that's done. First, I clone the repo for AFL++, then the equivalent of windows "just click next" by typing `make`. Where I see it build:
+
+```
+*] Testing the CC wrapper afl-gcc and its instrumentation output...
+afl-cc ++3.00c by Michal Zalewski, Laszlo Szekeres, Marc Heuse - mode: GCC-DEFAULT
+afl-as++3.00c by Michal Zalewski
+[+] Instrumented 18 locations (64-bit, non-hardened mode, ratio 100%).
+ASAN_OPTIONS=detect_leaks=0 ./afl-showmap -m none -q -o .test-instr0 ./test-instr < /dev/null
+echo 1 | ASAN_OPTIONS=detect_leaks=0 ./afl-showmap -m none -q -o .test-instr1 ./test-instr
+
+[+] All right, the instrumentation of afl-gcc seems to be working!
+[+] Main compiler 'afl-cc' successfully built!
+[-] LLVM mode for 'afl-cc'  failed to build, likely you either don't have llvm installed, or you need to set LLVM_CONFIG, to point to e.g. llvm-config-11. See instrumentation/README.llvm.md how to do this. Highly recommended!
+[-] LLVM LTO mode for 'afl-cc'  failed to build, this would need LLVM 11+, see instrumentation/README.lto.md how to build it
+[-] gcc_plugin for 'afl-cc'  failed to build, unless you really need it that is fine - or read instrumentation/README.gcc_plugin.md how to build it
+[+] All done! Be sure to review the README.md - it's pretty short and useful.
+```
+
+Aaaand it's done.
+
+
+
+
+
+
+
+
