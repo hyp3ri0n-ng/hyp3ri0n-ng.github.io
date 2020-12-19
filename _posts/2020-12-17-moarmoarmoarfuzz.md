@@ -537,8 +537,13 @@ Press enter and:
 
 
 
+I ran this a while back and I know there's some easy 0-days in there. Nothing super interesting, but I had about 5 unique crashes of varying types. I did not keep that data because I'm an idiot, but I hope to get that back. If you don't get crashes immediately, don't get discouraged, remember this is a "dumb" untargeted approach, so give it a week or two to find things. I promise you you'll find some null derefs in major programs at the very least. The next step is take a look at where the libs you fuzz are used:
 
+https://libexpat.github.io/doc/users/
 
+So now this dumb approach that is unlikely to net me anything huge in a hardened library could lead to 0-days in hundreds of other programs. Not bad for a dumb approach huh? Anyway, back to our regularly scheduled smart approach against explorer.exe
+
+##Continuing explorer.exe
 
 
 
