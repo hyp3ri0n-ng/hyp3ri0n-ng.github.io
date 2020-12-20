@@ -543,6 +543,7 @@ So now this dumb approach that is unlikely to net me anything huge in a hardened
 
 ##Continuing explorer.exe
 
+OK so when I tried running this explorer.exe under x64dbg I found myself running into problems. I simply wanted to place breakpoints on the functions that were imported from various DLLs and though I could, it would nearly crash (this is on a 16gb RAM system, 4-6 CPU cores - no tiny thing). I also found that going through the binary was a right pain in the ass. I found myself turning to windbg, as I often do, and hating myself a little bit for it. So I'm going to pick up a project I had set down a while ago - a debugger based on WinDBG that uses pykd to retrieve information. Let's go ahead and install pykd and get all of this set up, then I'll be going through some stuff in the debugger that will help me fuzz my way to victory. Remember my goal: I want to get the `SHGetFolderLocation(0, 5, 0, 0, &pidlAbsolute);` to crash. It hasn't been easy because I've had to get very targeted, this API crashes when you look at it the wrong way. So let's get to some dynamic reversing!! Grab windbg preview and let's install pykd.
 
 
 
