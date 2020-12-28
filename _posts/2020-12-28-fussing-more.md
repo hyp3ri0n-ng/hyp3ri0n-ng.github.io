@@ -64,4 +64,4 @@ Simple fuzz of `SHParseDisplayName`, this time I'm doing more testing to ensure 
 
 Second, kicked off (or rather started again) a fuzz of libexpat. It's running on a 32 core system and going at ~4k/sec executions. Not bad AFL++. I'll update with results. Because I'm tired I'm going to have problems really doing some hardcore hunting. Not necessarily a bad thing, let's do some easy stuff and go from there.
 
-
+One thing I need to be careful about that's been brought  to my attention (by me), is that you can't just cast a char type (uint_8 \* == unsigned char \*) to a wchar. That's gonig to cause weird undefined behavior. So I have ot use something like mbstowstr or the like to convert it all to UTF-16, the default in windows and what we saw when we popped all this in debugger. Coming soon to a theater near you.
