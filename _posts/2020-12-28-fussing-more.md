@@ -114,4 +114,4 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) {
 
 Cool so I kicked off that fuzzer, and it looks like I may have gotten lucky. That big long commented out string? That comes from a report Stack Buffer Overflow `in SHParseDisplayName`:
 
-![/assets/img/bof.png](bof.png)
+![/assets/img/bof.png](/assets/img/bof.png)
