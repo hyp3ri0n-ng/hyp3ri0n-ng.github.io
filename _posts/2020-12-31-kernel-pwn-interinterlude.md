@@ -810,7 +810,79 @@ And the analysis is getting painful and annoying. This used to be quite a simple
                                 
 Anyway I just got done porting DriverBuddy from NCCGroup into my own project that is in a working state. I see no reason why I can't just add onto it and do fun things with it, like integrate a fuzzer into it where you could right click and fuzz from IDA. That would be pretty dope. But for now it's good enough that this is actually working. I can it and guess what? It detected only 2 IOCTLs, the 2 that I know about, so it looks like it's unlikely that I'm missing something and likely that the number of IOCTLs for this whole thing is just quite small. I went ahead and grabbed DIBF from NCC Group (dudes are fuckin' everywhere - awesome work) https://github.com/nccgroup/DIBF. Now I may take a little bit more time in the "discovery" phase than most but I firmly believe that the better I understand all of this shit the more 0-days are just gonna fall out of it. Having 2 IOCTLS isn't ideal, i'd like osmething more like 7 or 8, but if that's what I have to work with then that's what I have to work with. BUT LET'S NOT GIVE UP YET!!!!!!!! There's a few more ways to harvest IOCTLs, and the tried and true method of JUST TRY EVERY FUCKING IOCTL CODE is one that works. It ain't fancy or classy, but we ain't lookin for classy muhfukkas, we're looking for down and dirty hooker IOCTLs. I'm sure someone will take offense at that previous sentence, but idgaf. Anyway, we want to MAKE SURE we understand what's up and how things are working. 
 
-Another method I have yet to employ is to simply place a breakpoint on DeviceIoControl with a kernel debugger. The script is something like this - if DeviceIoControl is called (remember this is the function that kicks out ioctls to a driver) break, check where it has broken from (the addy). If that addy is within the module addy (can be found with `!deviceobj vmhgfs 2` then boom it's valid, or at least something is sending that IOCTL so we should assume it's valid until we know it's not.  
+Another method I have yet to employ is to simply place a breakpoint on DeviceIoControl with a kernel debugger. The script is something like this - if DeviceIoControl is called (remember this is the function that kicks out ioctls to a driver) break, check where it has broken from (the addy). If that addy is within the module addy (can be found with `!deviceobj vmhgfs 2` then boom it's valid, or at least something is sending that IOCTL so we should assume it's valid until we know it's not.  I have trouble getting this to work, I don't know why, but it's definitely user error. So let's move on and come back to that.
+
+Here's my fork of DriverBuddy that i've classily named DriverFuckBuddy, it's DriverBuddy but for python 3.x and IDA 7.5 and it actually works. Let's see it in action:
+
+```
++] Searching for interesting C functions....
+[-] No interesting C functions detected
+[+] Searching for interesting Windows functions....
+[+] interesting winapi functions detected
+[+] Found 0x14000dba3 xref to ObfDereferenceObject
+[+] Found 0x14000e070 xref to ObfDereferenceObject
+[+] Found 0x1400189c9 xref to ObfDereferenceObject
+[+] Found 0x140018da1 xref to ObfDereferenceObject
+[+] Found 0x140018dcb xref to ObfDereferenceObject
+[+] Found 0x140018ecb xref to ObfDereferenceObject
+[+] Found 0x140021d25 xref to ObfDereferenceObject
+[+] Found 0x1400188ef xref to IofCallDriver
+[+] Found 0x140008392 xref to ObfReferenceObject
+[+] Found 0x14000c214 xref to ZwCreateFile
+[+] Found 0x14000c265 xref to ZwClose
+[+] Found 0x14000de17 xref to ZwClose
+[+] Found 0x140024619 xref to ZwClose
+[+] Found 0x1400248ef xref to ZwClose
+[+] Found 0x140024bf8 xref to ZwClose
+[+] Found 0x140024c07 xref to ZwClose
+[+] Found 0x140024c16 xref to ZwClose
+[+] Found 0x14000c25b xref to ZwDeviceIoControlFile
+[+] Found 0x140024596 xref to ZwOpenKey
+[+] Found 0x1400248a3 xref to ZwOpenKey
+[+] Found 0x1400249b9 xref to ZwOpenKey
+[+] Found 0x140024a0d xref to ZwOpenKey
+[+] Found 0x140024add xref to ZwOpenKey
+[+] Found 0x1400244ac xref to ZwQueryValueKey
+[+] Found 0x1400248de xref to ZwSetValueKey
+[+] Found 0x14000de02 xref to PsCreateSystemThread
+[+] Found 0x14000df80 xref to ObReferenceObjectByPointer
+[+] Searching for interesting driver functions....
+[-] No interesting specific driver functions detected
+[+] Trying to determine driver type...
+[+] Found real DriverEntry address of 1400274b0
+[+] Driver type detected: WDM
+[+] Searching for IOCTLS found by IDA...
+NOTE: idc.find_text is deprecated due to signature confusion with ida_search.find_text. Please use ida_search.find_text instead
+[+] IOCTL: 0x86002040
+[+] Device   : <UNKNOWN> (0x8600)
+[+] Function : 0x810
+[+] Method   : METHOD_BUFFERED (0)
+[+] Access   : FILE_ANY_ACCESS (0)
+[-] Couldn't get IOCTL from push    rbx at address 0x140018874 
+[-] Couldn't get IOCTL from mov     ecx, esi; IoControlCode at address 0x1400188c7 
+[+] IOCTL: 0x810320BC
+[+] Device   : <UNKNOWN> (0x8103)
+[+] Function : 0x82F
+[+] Method   : METHOD_BUFFERED (0)
+[+] Access   : FILE_ANY_ACCESS (0)
+[-] Couldn't get IOCTL from extrn IoBuildDeviceIoControlRequest:qword at address 0x14001a1e0 
+[-] Couldn't get IOCTL from extrn ZwDeviceIoControlFile:qword at address 0x14001a3a0 
+```
+
+OK so two IOCTLs, the same two I found via manual analysis, at least they're confirmed? So far we have:
+
+0x86002040
+0x810320BC
+
+Not a lot and not something we should trust in, so I went ahead and grabbed https://github.com/nccgroup/DIBF to brute force out some IOCTLs. I know there's something I'm missing in there, this driver is reasonably complicated and I really don't buy that there's only two IOCTLs.
+
+Almost immediately I find out that I'm right, another two IOCTLs pop out at me. one is 0x98268. So I pop that into IOCTLpus (kinda like burp repeater for IOCTLs) and see if it is in fact real. ![/assets/img/ioctlpus.PNG](/assets/img/ioctlpus.PNG)
+
+
+
+
+
+
 
 
 
