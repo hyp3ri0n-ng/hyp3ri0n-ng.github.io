@@ -882,7 +882,26 @@ OK so two IOCTLs, the same two I found via manual analysis, at least they're con
 
 Not a lot and not something we should trust in, so I went ahead and grabbed https://github.com/nccgroup/DIBF to brute force out some IOCTLs. I know there's something I'm missing in there, this driver is reasonably complicated and I really don't buy that there's only two IOCTLs.
 
-Almost immediately I find out that I'm right, another two IOCTLs pop out at me. one is 0x98268. So I pop that into IOCTLpus (kinda like burp repeater for IOCTLs) and see if it is in fact real. ![/assets/img/ioctlpus.PNG](/assets/img/ioctlpus.PNG)
+Almost immediately I find out that I'm right, another two IOCTLs pop out at me. one is 0x98268. So I pop that into IOCTLpus (kinda like burp repeater for IOCTLs) and see if it is in fact real. ![/assets/img/ioctlpus.PNG](/assets/img/ioctlpus.PNG). Ha OK, after a nice little brute force session I had 9 total ioctls (and I killed it before it finished). I'll be doing an analysis of why exactly I and the DriverFuckBuddy IDA plugin completely missed these. They look fun too. Here's the list:
+
+```
+94264 0 2000
+98268 0 2000
+86002020 0 2000
+86002040 0 2000
+86002044 0 2000
+86002048 0 2000
+8600204c 0 2000
+```
+As I see that that's only 7, so i'm missing two. Whatever. Either way I'm using DIBF right now to fuzz the IOCTL handlers. This simply uses calls to DeviceIoRequest with fucked up buffers and buffer sizes and such. I've got minidumps configured that should trigger froim a BSOD if any of this happens to actually work. Up tomorrow: I'm going to write a stupid little script that brute forces IOCTLs out of all of the driver handles on the system. From there it's just going to to some dumbfuck fuzzing. This sounds stupid, but I guarantee I'll be finding some simple overflows, UAFs, etc. just from this. Because driver IOCTLs are meant to be gathered from a low privileged account this is a great avenue for finding the not-so-coveted driver-based LPE. Anyway, more on that tomorrow. Goodnight everyone.
+
+
+
+
+
+
+
+
 
 
 
