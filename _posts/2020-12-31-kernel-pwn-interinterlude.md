@@ -1,3 +1,9 @@
+---
+layout: post
+title: Kernel Reving
+tags: [hacking]
+---
+
 ## Kernel Stuff
 
 So hunting in explorere.exe is all well and good, and I've been enjoying it. However, I need to get ready for a course I'm giving on the 31st of January! If you're not familiar with our HTP green belt course (https://www.hyperiongray.com/htp) we focus heavily on Windows 10 kernel exploitation. We do a bunch of userland stuff as well, but I find that attacking the kernel allows you to analyze small well-structured (and well documented) files. There's been a lot of work in it, and well, there's a reason why last time I approached Zerodium about kernel-based LPEs they weren't buying any more. It's a great place to start hunting. It requies some lead time in learning wtf is going on, if you're used to reversing in userland a driver looks pretty damn weird (WHERE'S MY MAIN() FUNCTION!!!?!?!?!).
