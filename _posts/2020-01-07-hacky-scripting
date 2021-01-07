@@ -1,3 +1,9 @@
+---
+layout: post
+title: Hacky Scripting Fun
+tags: [hacking]
+---
+
 Fuuucking hell. OK so I lost this post earlier and have been working on some dumb shit. Here's my goal: use some hacky ass python script along with DIBF for IOCTL discovery  against every  open handle in the OS. How do you get every open handle in the OS? I DON'T FUCKING KNOW. So I set off to find every stupid ass generic tool out there on the internet that doesn't know how to properly refer to shit on the operating system. I was looking for KERNEL DEVICE HANDLES PEOPLE. Apparently no one can fucking do that except for WinObj. The problem: I can't export shit from WinObj, so I'm fucked trying to reproduce its functionality. There were a couple of undocu functions it uses to do its magic and I did not want to deal with reversing some shit that should be fucking easy. So I turned to other tools. FINALLY, FINALLLLYYY I got to ntobjx.exe which is essentially winobj with a save button. I saved it, wrote some hacky-ass python string manipulations and grabbed my list of drivers:
 
 ```
