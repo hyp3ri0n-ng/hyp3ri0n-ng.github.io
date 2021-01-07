@@ -281,7 +281,16 @@ C:\Users\0day\Desktop\dynamic-analysis-tools\custom\youcanthandle
 
 Perhaps tomorrow i'll iteratively improve this, or perhaps not. On deck are: recreating an IRP-mon like functionality with a mutational fuzzer, doing more RE work on vmhgfs, doing more fuzz work on vmhgfs, and continuing my analysis of explorer.exe, which i was just getting my teeth into! So much stuff to do so little time....
 
+I even have my first IOCTLs already!
 
+```
+C:\Users\0day\Desktop\dynamic-analysis-tools\custom\youcanthandle
+λ cat _Device_WindowsTrustedRT
+\\?\WindowsTrustedRT
+94264 0 2000
+98268 0 2000
+560008 0 2000
+```
 
 
 
