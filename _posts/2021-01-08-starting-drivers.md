@@ -1,0 +1,4 @@
+## Driver Tut
+
+Well, it's back to my roots boys. No I'm not watching the show roots with Levar Burton playing his iconic role as Kunta Kintay, though I do recommend that, I'm going to talk to you about DRIVERS. WDM Drivers to be exact. In my last post I found a hacky way to brute force some devices, well guess what? It didn't work. Why? I could blame NCC Group's DIBF. Actually let's. I SPECIFICALLY told it to only enumerate IOCTLs, but inevitably I found it fuzzing ioctls after the brute force. This I did not want. So I figure, let's talk about what a driver looks like, how it interacts with the kernel, how to build one, how to query information from one/get it to do stuff, and finally some weak points all culminating in a simple driver enumerator and fuzzer. OK let's go. I'm starting off here:
+
